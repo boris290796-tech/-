@@ -1,0 +1,1 @@
+[thinking] # Handoff: Деплой AstroFit через Simple Container — ОСТАНОВЛЕН на предусловиях (эскалация оператору)
