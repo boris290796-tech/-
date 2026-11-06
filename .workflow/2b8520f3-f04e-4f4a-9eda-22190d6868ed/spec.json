@@ -1,0 +1,50 @@
+{
+  "initialCharacterId": "port-db",
+  "characters": [
+    {
+      "id": "port-db",
+      "agentId": "4616819d-5696-4854-babf-7c26fe815f54",
+      "displayName": "Порт БД на YDB",
+      "roleHint": "developer",
+      "initialPrompt": "Репозиторий boris290796-tech/Fit-astrology- (Next.js standalone, порт 8080; ВАЖНО: см. AGENTS.md — версия Next.js отличается от привычной, перед правками читай node_modules/next/dist/docs). Задача: перевести слой БД с PostgreSQL на YDB serverless для продакшена, сохранив встроенный PGlite для локального dev.\n\n1) src/lib/db: продакшен-подключение через @yandex-cloud/ydb-sdk по переменным YDB_ENDPOINT + YDB_DATABASE (serverless, публичный endpoint, IAM-токен из метаданных сервис-аккаунта; локально — PGlite как сейчас). API-слой сервисов (src/lib/services) должен продолжать работать без переписывания.\n2) Схема src/lib/db/schema.ts на Drizzle: официального YDB-диалекта нет — сделай тонкое отображение таблиц через YDB SDK, сохранив типы и контракты.\n3) Миграции: простой раннер YQL-миграций для YDB (отдельно от drizzle/ для PGlite).\n4) Конфиги Simple Container по гайду https://docs.simple-container.com/guides/parent-yandex-cloud/: .sc/stacks/devops/server.yaml (provisioner pulumi, state-storage yc-object-storage с provision:false, secrets-provider passphrase, template yc-serverless-container) и .sc/stacks/astrofit/client.yaml (single-image, dockerfile ${git:root}/Dockerfile, maxMemory 1024, timeout 600, env приложения, secrets: YDB_ENDPOINT, YDB_DATABASE, AUTH_SECRET, CRON_SECRET; cloudExtras.schedules — часовой 6-полевой cron с '?', POST в корень; cloudExtras.roles — права на YDB для сервис-аккаунта контейнера).\n5) Корневой route handler POST / в Next.js: распаковывает YC timer envelope (body.details.payload) и форвардит на /api/cron/lifecycle с Authorization: Bearer CRON_SECRET.\n6) npm test и npm run lint должны проходить (обнови затронутые тесты БД-слоя).\n7) Открой PR со всеми изменениями; в описании PR — таблица секретов, которые нужно добавить в Forge для шага деплоя.\n\nЗаверши работу handoff'ом, в конце которого отдельной строкой: status: pr_open (если PR открыт) или status: blocked (если застрял).",
+      "capabilities": {
+        "hasDocker": false,
+        "hasPersistentDisk": false,
+        "maxTurnDurationSec": 0,
+        "supportsLongLived": false,
+        "isolation": "",
+        "egressPolicy": ""
+      },
+      "description": "Портирует слой БД AstroFit на YDB, добавляет конфиги Simple Container, открывает PR"
+    },
+    {
+      "id": "deploy-sc",
+      "agentId": "4616819d-5696-4854-babf-7c26fe815f54",
+      "displayName": "Деплой через Simple Container",
+      "roleHint": "developer",
+      "initialPrompt": "Шаг деплоя AstroFit (репозиторий boris290796-tech/Fit-astrology-). Предусловие: PR из шага порта БД смержён оператором; если нет — остановись и запроси оператора, ничего не деплой.\n\n0) secret_list: проверь наличие секретов astrofit-yc-sa-key (JSON authorized key СА с admin на folder), astrofit-yc-static-key (access key id + secret для S3 API), astrofit-yc-cloud-id, astrofit-yc-folder-id, astrofit-sc-state-passphrase, astrofit-auth-secret, astrofit-cron-secret. Чего-то нет — эскалируй оператору точный список и остановись.\n1) Установи sc CLI: curl -sSL https://dist.simple-container.com/sc.sh | bash.\n2) Собери .sc/stacks/devops/secrets.yaml (auth.yc: serviceAccountKey, accessKey/secretAccessKey, cloudId, folderId, region ru-central1, zone ru-central1-a; values.state-passphrase). Файл с ключами НЕ коммитить в открытом виде: сразу sc secrets add .sc/stacks/devops/secrets.yaml \u0026\u0026 sc secrets hide; никаких git add -A при открытом файле.\n3) Бакет состояния Pulumi создай через S3-совместимый API; имя впиши в server.yaml (provision: false).\n4) Создай базу YDB serverless (astrofit). Если под рукой нет yc CLI — дай оператору точную команду (yc ydb database create astrofit --serverless) и продолжи после подтверждения. Endpoint и database path передай контейнеру через секреты YDB_ENDPOINT/YDB_DATABASE; сервис-аккаунту контейнера — роли на YDB (cloudExtras.roles).\n5) sc provision -s devops, затем sc deploy -s astrofit -e production.\n6) Смоук-тест: curl публичного URL (адрес выдаст deploy), проверь главную и POST-эндпоинты; посмотри логи контейнера.\n7) Отчитайся оператору: URL, что задеплоено, проблемы, чек-лист следующих шагов (свой домен, ИИ-ключи GigaChat/DeepSeek, VAPID-ключи push). sc destroy — только по явной команде оператора, ничего не пересоздавай без необходимости.",
+      "capabilities": {
+        "hasDocker": false,
+        "hasPersistentDisk": false,
+        "maxTurnDurationSec": 0,
+        "supportsLongLived": false,
+        "isolation": "",
+        "egressPolicy": ""
+      },
+      "description": "Деплоит AstroFit через sc provision/deploy, создаёт YDB, смоук-тест"
+    }
+  ],
+  "transitions": [
+    {
+      "id": "port-to-deploy",
+      "fromCharacterId": "port-db",
+      "toCharacterId": "deploy-sc",
+      "condition": "handoff.status == 'pr_open'",
+      "managementCharacterId": "deploy-sc",
+      "escalationPolicy": "",
+      "instructionsTemplate": "Передай: ссылку на PR порта БД, статус тестов, точный список секретов, которые оператор должен добавить в Forge (astrofit-*), и любые решения по схеме YDB, о которых стоит знать перед деплоем."
+    }
+  ],
+  "enrichBudgetDefault": 0,
+  "storageMode": ""
+}
