@@ -1,1 +1,1 @@
-[thinking] # Handoff: Деплой AstroFit через Simple Container — ОСТАНОВЛЕН на предусловиях (эскалация оператору)
+[thinking] # Handoff: Деплой AstroFit через Simple Container — повторный проход (retry-инструкции выполнены, блокеры перепроверены и подтверждены)
