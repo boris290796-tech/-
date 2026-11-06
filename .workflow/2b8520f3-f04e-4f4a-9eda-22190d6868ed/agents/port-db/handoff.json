@@ -1,0 +1,8 @@
+{
+  "bodyBytes": 10293,
+  "characterId": "port-db",
+  "displayName": "Порт БД на YDB",
+  "phase": "run",
+  "roleHint": "developer",
+  "writtenAt": "2026-11-06T21:47:39.155380411Z"
+}

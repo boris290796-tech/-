@@ -1,0 +1,3 @@
+- **PR #1 (open):** https://github.com/boris290796-tech/Fit-astrology-/pull/1 — head `ydb-port` → base `claude/fitness-astrology-app-smhj34`
+- **Ветка с работой:** `ydb-port`, головной коммит **3e2731d62a5b** (полный: `3e2731d62a5b2c4b628786caaa602c8e01dd1ee8`)
+- ⚠️ Примечание для DevOps/QA: workflow-ветка `forge/workflow/.../run/2b8520f3...` не существовала в GitHub при старте (инструмент записи падал 404), поэтому работа велась напрямую в существующе�…
