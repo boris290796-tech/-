@@ -1,58 +1,54 @@
-[thinking] PR #2 opened: https://github.com/boris290796-tech/Fit-astrology-/pull/2 (head `de2a9a1bec`). All work that can be done from this environment is committed and verified. Final handoff:
-
----
-
-# Handoff — deploy-sc (деплой AstroFit через Simple Container)
+[thinking] # Handoff — deploy-sc (corrective pass, 2026-11-07)
 
 ## 1. Commit + branch identity
 
-- **PR: https://github.com/boris290796-tech/Fit-astrology-/pull/2** — открыт, `sc-secrets-template` → `claude/fitness-astrology-app-smhj34` (default), head `de2a9a1bec8092665e03cd65fa8588b07aae4d5d`
-- Коммиты шага (все — `simple-container-forge[bot]`, 2026-11-07, эта сессия): `d75e430d2f9` (devops example) → fix astrofit example → `21abbd8a4e6` (runbook) → `928dea5fbc` (.gitignore) → README link
-- Предусловие выполнено: PR #1 смержен (`a31cdfd5b9`, 2026-11-07T10:31:17Z, проверено через GitHub API)
+- Ветка шага: `sc-secrets-template`, **PR #2**: https://github.com/boris290796-tech/Fit-astrology-/pull/2 — открыт, head `74dd69c47b2a11feb46a675e9314bc3d88a8e092`
+- Коммиты ЭТОГО прохода (автор `simple-container-forge[bot]`, живое подтверждение через GitHub API):
+  - `28e9d82585cde7b06cac83cd41b6b5194fefa0c7` (11:14:23Z) — Dockerfile: закрыт деплой-блокер 1
+  - `74dd69c47b2a11feb46a675e9314bc3d88a8e092` (11:15:03Z) — runbook: блокер 1 закрыт, верифицированные ссылки CLI
+- Тело PR #2 обновлено (PATCH /pulls/2 → 200, отражает фикс Dockerfile и остаточный блокер)
+- Предусловие: PR #1 смержен (`a31cdfd5b9`, 2026-11-07T10:31:17Z)
 
-## 2. Files touched (проектный репозиторий, ветка `sc-secrets-template`)
+## 2. Files touched (в этом проходе)
 
 | Path | Lines added / removed | What changed |
 |---|---|---|
-| `.sc/stacks/devops/secrets.yaml.example` | +65/-0 | Шаблон secrets.yaml (схема из гайда parent-yandex-cloud), поля смаплены на Forge-секреты `astrofit-*`. В brief фигурировал как существующий — его **не было** в репо; создан |
-| `.sc/stacks/astrofit/secrets.yaml.example` | +36/-0 | Шаблон стека astrofit: `astrofit-ydb-endpoint`, `astrofit-ydb-database`, `astrofit-auth-secret`, `astrofit-cron-secret` под `${secret:...}` из client.yaml |
-| `docs/deploy/DEPLOY_RUNBOOK.md` | +165/-0 | Исполняемый runbook оператора: шаги 1–7 (sc install, secrets add/hide, бакет `astrofit-sc-yc-state`, YDB serverless `astrofit`, provision/deploy, смоук, чек-лист) + 2 найденных блокера |
-| `.gitignore` | +9/-0 | Guard от коммита plaintext: `.sc/stacks/*/secrets.yaml`, `.sc/cfg.default.yaml`, `.sc/cfg.github.yaml` (защита существует ДО первого `sc secrets add`) |
-| `README.md` | +2/-0 | Ссылки на runbook и шаблоны в секции деплоя |
+| `Dockerfile` | +6/-2 | **Закрыт Блокер 1**: `RUN npm ci` → `RUN npm install` (lock-файл без ydb-sdk, `npm ci` падал бы на build образа); TODO-комментарий про возврат к `npm ci` после регенерации lock |
+| `docs/deploy/DEPLOY_RUNBOOK.md` | ~40 строк переработано | Блокер 1 переведён в «закрыт» (с SHA коммита); команды `yc` снабжены верифицированными ссылками CLI-справочника; примечание о S3 API (жив, анонимно без SigV4 недоступен) |
 
-Проверка `git log -1` по каждому пути: последний коммит — мой, этой сессией, на ветке PR.
+Коммиты предыдущего прохода (в том же PR): шаблоны secrets.yaml.example ×2, .gitignore-guard, README — без изменений в этом проходе.
+
+`git log -1` по обоим путям (list_repository_commits): последний коммит — мой, этой сессией.
 
 ## 3. Acceptance criteria verification
 
-| AC# | Criterion (из инструкции шага) | Status | Evidence |
+| AC# | Criterion | Status | Evidence |
 |---|---|---|---|
-| 0 | 7 секретов `astrofit-*` в Forge | PASS | Все 7 алиасов присутствуют в списке секретов организации: yc-sa-key, yc-static-key, yc-cloud-id, yc-folder-id, sc-state-passphrase, auth-secret, cron-secret. Эскалация не потребовалась |
-| 1 | Установить sc CLI | FAIL-blocked | У этого персонажа **нет shell/exec-инструментов** (спека run: `hasDocker:false`, `supportsLongLived:false`; инструментальный набор — только HTTP/GitHub-API). Инсталлер проверен живым чтением (https://dist.simple-container.com/sc.sh, VERSION 2026.11.29); команда в runbook §1 |
-| 2 | Собрать secrets.yaml + `sc secrets add`/`hide`, не коммитить plaintext | FAIL-blocked (артефактная часть PASS) | Выполнение `sc` невозможно (нет shell); **значения** секретов недоступны агенту в принципе (server-side injection). Сделано что можно: оба шаблона с маппингом на Forge-алиасы закоммичены; `.gitignore`-guard; порядок add/hide/rm — в runbook §2 (из скилла sc-init-secrets/sc-caveats §16: hide не трогает plaintext-файл, коммитится только `.sc/secrets.yaml`) |
-| 3 | Создать бакет состояния через S3 API, имя в server.yaml (`provision: false`) | FAIL-blocked | Нет shell/S3-клиента; подпись S3 требует значений static key (недоступны). `server.yaml` уже ссылается на `astrofit-sc-yc-state` c `provision: false` (sha `e0bb8bd3de6d`). Точные команды (yc / aws --endpoint-url) — runbook §3 |
-| 4 | Создать YDB serverless `astrofit`; endpoint/database → в секреты; роли контейнеру | FAIL-blocked | Нет yc CLI/shell. Команда оператору: `yc ydb database create astrofit --serverless` + `yc ydb database get astrofit` (runbook §4; источник — инструкция шага; CLI-reference страница на yandex.cloud переехала, 404 на старых путях — отмечено как [to be verified]). Роли уже в client.yaml: `cloudExtras.roles: [ydb.viewer, ydb.editor]` — доп. гранты не нужны |
-| 5 | `sc provision -s devops` → `sc deploy -s astrofit -e production` | FAIL-blocked (+найден деплой-блокер) | Нет shell. **Найдено проверкой**: (а) `package-lock.json` НЕ содержит `ydb-sdk`, добавленного PR #1 в `package.json` (проверено чтением lock-файла и diff PR #1 — lock-файл не менялся), а Dockerfile использует `npm ci` → build упадёт; (б) в client.yaml стек назван `prod`, а не `production` → команда либо `-e prod`, либо переименовать ключ. Оба — в runbook §Блокеры. Пакет `ydb-sdk@5.11.1` существует (registry.npmjs.org, издатель ydb-platform) |
-| 6 | Смоук-тест публичного URL + логи | FAIL-blocked | Нечего тестировать — деплой не выполнен. Готовые curl-проверки (GET /, POST / с YC-envelope, POST с Bearer → /api/cron/lifecycle) — runbook §6 |
-| 7 | Отчёт оператору: URL/статус/проблемы/чек-лист | PASS | Этот handoff + PR #2 body + runbook §7: свой домен (сейчас — без него, URL вида `*.containers.yandexcloud.net`; для .ru-домена нужен yc-dns registrar + API Gateway), ИИ-ключи GigaChat/DeepSeek, VAPID push (`npm run vapid`, публичный — build-arg), RESEND/Stripe, `sc destroy` — только по явной команде |
+| 0 | 7 секретов `astrofit-*` в Forge | PASS | Все 7 алиасов в списке секретов org (yc-sa-key, yc-static-key, yc-cloud-id, yc-folder-id, sc-state-passphrase, auth-secret, cron-secret) |
+| 1 | Установить sc CLI | FAIL-blocked | У персонажа нет exec-инструментов (инструменты: HTTP/GitHub-API/browser). Инсталлер проверен живым чтением 2026-11-07: `dist.simple-container.com/sc.sh` → 200, `VERSION="2026.11.29"`; darwin/amd64 выпущен, есть cosign-верификация тарболла. Команда — runbook §1 |
+| 2 | secrets.yaml + `sc secrets add`/`hide`, без коммита plaintext | FAIL-blocked (артефакты PASS) | Шаблоны закоммичены и перечитаны живьём (sha `6e3e6efb` / `abc2ba2e`); .gitignore-guard на месте (sha `142bd23a`, включая `.sc/stacks/*/secrets.yaml`). Исполнение `sc` требует shell; значения секретов серверно не инжектятся в агент. Порядок add/hide/rm — runbook §2 (sc-init-secrets: hide не трогает plaintext, коммитится только `.sc/secrets.yaml`) |
+| 3 | State-бакет через S3 API, имя в server.yaml | FAIL-blocked | **Реально попробовал в этом проходе**: `GET https://storage.yandexcloud.net/` → 200, `<ListAllMyBucketsResult><Buckets/>` — API жив, но без SigV4-подписи отдаёт пусто; подпись требует значений static key (серверные, агенту недоступны). `server.yaml` уже указывает `astrofit-sc-yc-state`, `provision: false` (sha `e0bb8bd3`). Команды верифицированы: `yc storage bucket create <BUCKET-NAME>` — yandex.cloud/en/docs/cli/cli-ref/storage/cli-ref/bucket/create (обновл. 2026-10-01); роль storage.editor — yandex.cloud/ru/docs/storage/operations/buckets/create (обновл. 01.11.2026) |
+| 4 | YDB serverless `astrofit` + секреты endpoint/database + роли | FAIL-blocked | Команда верифицирована по живому CLI-справочнику: `yc ydb database create <DATABASE-NAME>` c флагом `--serverless` — yandex.cloud/en/docs/cli/cli-ref/ydb/cli-ref/database/create (обновл. 2026-09-17). Роли уже в client.yaml (`cloudExtras.roles: [ydb.viewer, ydb.editor]`, sha `a393ba8c`); шаблон astrofit-секретов закоммичен |
+| 5 | `sc provision -s devops` → `sc deploy` | FAIL-blocked (блокер 1 из кода закрыт) | Нет exec. **Реальный деплой-блокер из кода устранён**: `npm ci` упал бы на рассинхроне lock (search по репо `ydb-sdk` → 0 в lock-файле; `ydb-sdk@5.11.1` существует — registry.npmjs.org/ydb-sdk/5.11.1, издатель ydb-platform) → коммит `28e9d82585` перевёл Dockerfile на `npm install`. Осталось: `-e prod` вместо `-e production` (ключ `stacks.prod` в client.yaml) — задокументировано, runbook §Блокер 2 |
+| 6 | Смоук публичного URL + логи | FAIL-blocked | Деплой не выполнен (см. AC5); curl-проверки (GET /, POST с YC-envelope → 401 без Bearer, POST с Bearer) готовы в runbook §6 |
+| 7 | Отчёт оператору | PASS | Этот handoff + PR #2 body (обновлён) + runbook §7: свой домен, GigaChat/DeepSeek, VAPID (`npm run vapid`), RESEND/Stripe, `sc destroy` только по команде |
 
 ## 4. Tests run
 
-Не запускались — в этом окружении нет shell/Node-раннера (тот же лимит, что у port-db в этом прогоне; CI в репо не настроен). Верификация вместо прогонов:
+Прогонов npm/docker нет — в окружении нет shell/Node (CI в репо отсутствует, check-runs = 0). Верификация этого прохода — живые вызовы:
 
-- GitHub API: `GET /repos/…/pulls?state=merged` → PR #1 `mergedAt 2026-11-07T10:31:17Z`; `read_commit_diff(a31cdfd…)` → 19 файлов, lock-файл не тронут; `branches` → только 2 ветки (ветку создал сам через `POST /git/refs`)
-- Чтение `package-lock.json` (raw, head) — в корневом `dependencies` нет `ydb-sdk` → `npm ci` упадёт (доказательство AC5-блокера)
-- Живые HTTP-проверки: sc.sh инсталлер (200, VERSION 2026.11.29); docs.simple-container.com/guides/parent-yandex-cloud (схема secrets.yaml, синтаксис cloudExtras/schedules — использована в шаблонах); registry.npmjs.org/ydb-sdk/latest (200, v5.11.1) vs @yandex-cloud/ydb-sdk (404 — подтверждено, что port-db корректно взял bare-имя)
-- `git log -1` по каждому артефакту — последний коммит мой, этой сессией
+- `GET storage.yandexcloud.net/` → 200 `ListAllMyBucketsResult` (API жив, анонимный список пуст — подпись обязательна)
+- `GET dist.simple-container.com/sc.sh` → 200, `VERSION="2026.11.29"`
+- `GET registry.npmjs.org/ydb-sdk/5.11.1` → 200 (tarball, integrity, deps)
+- browse CLI-справочника YC (2 страницы, обновлены 2026-09-17/2026-10-01) и страницы создания бакета (обновл. 01.11.2026)
+- `search_repository_code("ydb-sdk")` → 0 (lock-файл не содержит; подтверждение блокера 1)
+- `PATCH /pulls/2` → 200; `GET /branches/sc-secrets-template` → head `74dd69c4`, parent `28e9d825` (цепочка коммитов этого прохода подтверждена)
+- web_search retry: tavily → HTTP 401 (у org нет tavily-ключа), yandex → HTTP 400 enum `l10n` — компенсировано прямым browse авторитетных страниц (сильнее сниппетов поиска)
 
-## 5. Состояние и что нужно оператору
+## 5. Состояние и единственный остаточный блокер
 
-**Задеплоенного URL нет — деплой не выполнялся.** Блокер — исполнение: у персонажа deploy-sc нет shell/exec, а значения `astrofit-*` недоступны агенту в принципе (server-side). Дальше двигаться может только человек (или workflow-шаг с shell-нодой):
+**Деплой не выполнен; задеплоенного URL нет.** Блокер один, вне моей досягаемости: у этого персонажа нет shell/exec-инструмента, а облачные операции (SigV4 CreateBucket, `yc`, `sc provision/deploy`) требуют shell + значений секретов `astrofit-*`, которые серверно инжектятся и в контекст агента не попадают. Их предоставляет оператор, выполнив `docs/deploy/DEPLOY_RUNBOOK.md` §1–6 (ветка PR #2; все значения — Forge org secrets, все команды сверены с живыми источниками).
 
-1. Закрыть Блокер 1: `npm install` → коммит `package-lock.json` (иначе `sc deploy` падает на build).
-2. Решить по Блокеру 2: `sc deploy -s astrofit -e prod` (или переименовать ключ в client.yaml).
-3. Выполнить runbook `docs/deploy/DEPLOY_RUNBOOK.md` (PR #2) шаги 1–6; значения — из Forge org secrets.
-4. После смержа PR #2 шаблоны и `.gitignore`-guard окажутся в main.
-
-`sc destroy` не выполнялся, ничего в облаке не создавал/не пересоздавал.
+Всё, не зависящее от этого, в этом проходе сделано и закоммичено: деплой-блокер в Dockerfile устранён, runbook доведён до верифицированного состояния, PR #2 актуализирован. `sc destroy` не выполнялся, облачные ресурсы не создавались и не пересоздавались.
 
 **Verdict:** failure

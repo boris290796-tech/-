@@ -1,8 +1,8 @@
 {
-  "bodyBytes": 8870,
+  "bodyBytes": 8398,
   "characterId": "deploy-sc",
   "displayName": "Деплой через Simple Container",
-  "phase": "run",
+  "phase": "enrich",
   "roleHint": "developer",
-  "writtenAt": "2026-11-07T11:03:20.824061405Z"
+  "writtenAt": "2026-11-07T11:16:19.602143435Z"
 }
